@@ -29,10 +29,9 @@ def readmovie(fname: str) -> np.ndarray:
         print(f"Image output will be {frame_h}*{frame_w} pixels")
     else:
         raise TypeError("fname is not a string")
-    
-    frames = np.empty((nframes, frame_h, frame_w), dtype = np.int32, order = "C")
-    for i in range(nframes):
-        frames[i] = np.asarray(cv2.cvtColor(vidcap.read()[1], cv2.COLOR_RGB2GRAY), dtype = np.int32, order = "C")
+        
+    frames = np.fromiter((cv2.cvtColor(vidcap.read()[1], cv2.COLOR_BGR2GRAY) for i in range(nframes)), dtype = np.dtype(object, (nframes, frame_h, frame_w)), count = nframes)
+
     vidcap.release()
     #Check if parsing succeeded 
     if len(frames) == 0:
@@ -74,15 +73,13 @@ def gen_danger_matrix(framearr: np.ndarray, thresh: float, fps: float = 25, binf
 
         
 def gen_danger_matrix_deriv(framearr: np.ndarray, fps: float = 25) -> np.ndarray:
-    """
-    mask = np.zeros(np.shape(framearr[-1]))
-    for i in range(1, len(framearr)-1):
-        mask += (framearr[i+1]-framearr[i-1])/(2*(1/fps))
+    mask = []
+    for i in range(0, len(framearr) - 1):
+        mask.append((framearr[i+1] - framearr[i])/((1/fps)))
     
-    mask /= len(framearr)
-    """
-    mask = np.gradient(framearr, axis = 0)
-    return mask 
+    mask = np.sum(mask, axis = 0)/len(mask)
+
+    return mask
 
 def gen_typical_distr(framearr: np.ndarray, mask: np.ndarray, thresh: float) -> tuple[np.ndarray, np.ndarray]:
     typ_pixels, typ_idx = np.unique(mask, return_counts = True)
